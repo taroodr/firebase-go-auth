@@ -1,88 +1,137 @@
-import React from 'react'
-import Head from 'next/head'
-import Nav from '../components/nav'
+import * as React from "react";
+import firebase from "firebase/app";
+import "firebase/auth";
+import "firebase/firestore";
+import "isomorphic-unfetch";
+import { NextPageContext } from "next";
+import axios from "axios";
 
-const Home = () => (
-  <div>
-    <Head>
-      <title>Home</title>
-      <link rel="icon" href="/favicon.ico" />
-    </Head>
+type Props = {
+  user: any;
+  messages: any;
+};
 
-    <Nav />
+type State = {
+  user: any;
+  messages: any;
+  value: string;
+};
 
-    <div className="hero">
-      <h1 className="title">Welcome to Next.js!</h1>
-      <p className="description">
-        To get started, edit <code>pages/index.js</code> and save to reload.
-      </p>
+export default class Index extends React.Component<Props, State> {
+  static async getInitialProps({ req, query }: NextPageContext) {
+    // @ts-ignore
+    const user = req && req.session ? req.session.decodedToken : null;
 
-      <div className="row">
-        <a href="https://nextjs.org/docs" className="card">
-          <h3>Documentation &rarr;</h3>
-          <p>Learn more about Next.js in the documentation.</p>
-        </a>
-        <a href="https://nextjs.org/learn" className="card">
-          <h3>Next.js Learn &rarr;</h3>
-          <p>Learn about Next.js by following an interactive tutorial!</p>
-        </a>
-        <a
-          href="https://github.com/zeit/next.js/tree/master/examples"
-          className="card"
-        >
-          <h3>Examples &rarr;</h3>
-          <p>Find other example boilerplates on the Next.js GitHub.</p>
-        </a>
+    const messages = null;
+    return { user, messages };
+  }
+
+  constructor(props: any) {
+    super(props);
+    this.state = {
+      user: this.props.user,
+      value: "",
+      messages: this.props.messages
+    };
+    this.handleChange = this.handleChange.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
+    this.apiPublic = this.apiPublic.bind(this);
+    this.apiPrivate = this.apiPrivate.bind(this);
+  }
+
+  componentDidMount() {
+    firebase.initializeApp({
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      apiKey: process.env.FIREBASE_PUBLIC_API_KEY
+    });
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        this.setState({ user: user });
+        return user.getIdToken().then(token => {
+          return fetch("api/login", {
+            method: "POST",
+            headers: new Headers({ "Content-Type": "application/json" }),
+            credentials: "same-origin",
+            body: JSON.stringify({ token })
+          });
+        });
+      } else {
+        this.setState({ user: null });
+        fetch("/api/logout", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+      }
+    });
+  }
+
+  async apiPublic() {
+    let res = await axios.get("http://localhost:8000/public");
+    console.log(res.data);
+  }
+
+  async apiPrivate() {
+    if (this.state.user) {
+      const token = await this.state.user.getIdToken();
+      let res = await axios.get("http://localhost:8000/private", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log(res.data);
+    }
+  }
+
+  handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    this.setState({ value: event.target.value });
+  }
+
+  handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    this.setState({ value: "" });
+    console.log("submit");
+  }
+
+  handleLogin() {
+    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  }
+
+  handleLogout() {
+    firebase.auth().signOut();
+  }
+
+  render() {
+    const { user, value, messages } = this.state;
+
+    return (
+      <div>
+        {user ? (
+          <button onClick={this.handleLogout}>Logout</button>
+        ) : (
+          <button onClick={this.handleLogin}>Login</button>
+        )}
+        {user && (
+          <div>
+            <form onSubmit={this.handleSubmit}>
+              <input
+                type={"text"}
+                onChange={this.handleChange}
+                placeholder={"add message..."}
+                value={value}
+              />
+            </form>
+            <ul>
+              {messages &&
+                Object.keys(messages).map((key: any) => (
+                  <li key={key}>{messages[key].text}</li>
+                ))}
+            </ul>
+          </div>
+        )}
+        <button onClick={this.apiPrivate}>private</button>
+        <button onClick={this.apiPublic}>public</button>
       </div>
-    </div>
-
-    <style jsx>{`
-      .hero {
-        width: 100%;
-        color: #333;
-      }
-      .title {
-        margin: 0;
-        width: 100%;
-        padding-top: 80px;
-        line-height: 1.15;
-        font-size: 48px;
-      }
-      .title,
-      .description {
-        text-align: center;
-      }
-      .row {
-        max-width: 880px;
-        margin: 80px auto 40px;
-        display: flex;
-        flex-direction: row;
-        justify-content: space-around;
-      }
-      .card {
-        padding: 18px 18px 24px;
-        width: 220px;
-        text-align: left;
-        text-decoration: none;
-        color: #434343;
-        border: 1px solid #9b9b9b;
-      }
-      .card:hover {
-        border-color: #067df7;
-      }
-      .card h3 {
-        margin: 0;
-        color: #067df7;
-        font-size: 18px;
-      }
-      .card p {
-        margin: 0;
-        padding: 12px 0 0;
-        font-size: 13px;
-        color: #333;
-      }
-    `}</style>
-  </div>
-)
-
-export default Home
+    );
+  }
+}

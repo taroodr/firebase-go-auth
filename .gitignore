@@ -19,7 +19,13 @@
 .DS_Store
 .env*
 
+
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+#credentials
+go-nextjs-auth-firebase-adminsdk.json
+/credentials
+/sessions
