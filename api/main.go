@@ -48,7 +48,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func public(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("hello public!\n"))
+	w.Write([]byte("hello public!!!\n"))
 }
 
 func private(w http.ResponseWriter, r *http.Request) {
