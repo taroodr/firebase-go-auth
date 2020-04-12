@@ -21,6 +21,7 @@ export default class Index extends React.Component<Props, State> {
   static async getInitialProps({ req, query }: NextPageContext) {
     // @ts-ignore
     const user = req && req.session ? req.session.decodedToken : null;
+    console.log(user, "server")
 
     const messages = null;
     return { user, messages };
@@ -47,7 +48,9 @@ export default class Index extends React.Component<Props, State> {
       apiKey: process.env.FIREBASE_PUBLIC_API_KEY
     });
 
+    
     firebase.auth().onAuthStateChanged(user => {
+      console.log(user)
       if (user) {
         this.setState({ user: user });
         return user.getIdToken().then(token => {
